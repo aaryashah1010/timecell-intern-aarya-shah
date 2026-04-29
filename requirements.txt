@@ -1,0 +1,7 @@
+# Task 1 (Risk Engine) uses only the Python standard library at runtime.
+# Task 2 (Market Data) needs:
+yfinance>=0.2.40
+requests>=2.31
+
+# Test dependency:
+pytest>=7.0
