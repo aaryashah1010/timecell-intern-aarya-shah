@@ -170,3 +170,51 @@ or real-time market conditions.
 ```bash
 pytest tests/test_portfolio_optimizer.py -q
 ```
+
+## Task 4 — Crash Scenario Story Generator
+
+### What This Builds
+A CLI tool that stress-tests a portfolio against 5 AI-generated macro
+scenarios. ChatGPT generates the story and shock percentages.
+Python computes every number. Nothing crosses that boundary.
+
+### Architecture
+
+  ┌──────────────────────────────────────────────────────┐
+  │               task4_crash_story.py                   │
+  │           (orchestrator — entry point)               │
+  └───┬──────────────────┬──────────────────┬───────────┘
+      │                  │                  │
+      ▼                  ▼                  ▼
+  ChatGPT           crash_engine       breakpoint
+  scenario_          .py (math)        _detector.py
+  generator.py                         (binary search)
+      │                  │
+      │  shock_map        │  imports
+      │  (% values only)  ▼
+      └─────────────▶ risk_calculator.py
+                       (Task 1 engine)
+                          │
+                          ▼
+                    report_formatter.py
+                    (terminal output)
+
+### Core Principle
+ChatGPT generates scenarios and shock percentages only.
+Python computes all INR values, runway, and verdicts.
+This directly reflects TimeCell's principle:
+"Math computed in code, not guessed by a language model."
+
+### Why ChatGPT's Shock Values (Not crash_assumptions.py)
+crash_assumptions.py contains generic historical averages.
+ChatGPT provides scenario-aware values:
+  Generic map: BTC = -70% always
+  ChatGPT:     BTC = -71% (crypto crackdown)
+               BTC = -20% (RBI rate hike — barely affected)
+               BTC = -55% (global credit freeze)
+The prompt forces ChatGPT to cover every asset, so no fallback is needed.
+
+### How To Run
+  python task4_crash_story.py              # default portfolio
+  python task4_crash_story.py --input      # enter your own portfolio
+  python task4_crash_story.py --dry-run    # test math, no API cost

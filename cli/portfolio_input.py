@@ -129,3 +129,104 @@ def collect_portfolio_dict(*, banner: str | None = None) -> dict:
         "monthly_expenses_inr": monthly,
         "assets": assets,
     }
+
+
+def get_portfolio_from_user() -> dict:
+    """
+    Interactive CLI to build a custom portfolio from user input.
+    Does not rely on crash_assumptions.py — shock percentages for
+    Task 4 will be provided entirely by ChatGPT at scenario generation time.
+    Returns a portfolio dict in the same shape as the default portfolio.
+    """
+    print("\n  ── PORTFOLIO SETUP ──────────────────────────────────")
+
+    try:
+        total_str = input("  Total portfolio value (INR): ₹").replace(",", "").strip()
+        total = float(total_str)
+    except ValueError:
+        print("  [ERROR] Invalid amount. Using default ₹1,00,00,000")
+        total = 10_000_000
+
+    try:
+        expenses_str = input("  Monthly expenses (INR): ₹").replace(",", "").strip()
+        expenses = float(expenses_str)
+    except ValueError:
+        print("  [ERROR] Invalid amount. Using default ₹80,000")
+        expenses = 80_000
+
+    assets: list[dict] = []
+    total_alloc = 0.0
+
+    print("\n  Enter your assets one by one.")
+    print("  Examples: BTC, ETH, NIFTY50, GOLD, CASH, Reliance, Apple")
+    print("  Type 'done' when finished.\n")
+
+    while True:
+        name = input("  Asset name (or 'done'): ").strip()
+        if name.lower() == "done":
+            if not assets:
+                print("  [ERROR] You must enter at least one asset.")
+                continue
+            break
+        if not name:
+            continue
+
+        remaining = 100.0 - total_alloc
+        while True:
+            try:
+                pct = float(input(f"  Allocation % for {name}: ").strip())
+            except ValueError:
+                print("  [ERROR] Invalid percentage. Try again.")
+                continue
+
+            if pct < 0:
+                print("  [ERROR] Allocation cannot be negative. Please re-enter.")
+                continue
+            if pct > remaining + 1e-9:
+                print("[ERROR] Total allocation exceeds 100%. Please re-enter.")
+                print(f"  Remaining allocation available: {remaining:.1f}%")
+                continue
+            break
+
+        if pct == 0:
+            print(f"  {name} skipped (0%).\n")
+            continue
+
+        total_alloc += pct
+
+        # expected_crash_pct is a placeholder only.
+        # Task 4 will override this entirely with ChatGPT scenario values.
+        assets.append({
+            "name": name,
+            "allocation_pct": pct,
+            "expected_crash_pct": -30.0,
+        })
+
+        print(f"  ✓ {name} added ({pct}%)")
+        print("    Note: crash % will be set by ChatGPT per scenario\n")
+
+        if abs(total_alloc - 100.0) <= 1e-9:
+            print("  Total allocation reached 100%.\n")
+            break
+
+    remaining = 100.0 - total_alloc
+    if remaining > 0.01:
+        print(f"\n  Unallocated {remaining:.1f}% assigned to Cash.")
+        assets.append({
+            "name": "Cash",
+            "allocation_pct": remaining,
+            "expected_crash_pct": 0.0,
+        })
+        total_alloc = 100.0
+
+    if abs(total_alloc - 100.0) > 0.5:
+        print(f"\n  [WARNING] Allocations sum to {total_alloc:.1f}%, not 100%.")
+        print("  Results will still compute but ratios may be off.\n")
+    else:
+        print(f"\n  ✓ Total allocation: {total_alloc:.1f}%\n")
+
+    return {
+        "total_value_inr": total,
+        "monthly_expenses_inr": expenses,
+        "assets": assets,
+    }
