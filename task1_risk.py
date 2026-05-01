@@ -20,12 +20,7 @@ import logging
 import sys
 from pathlib import Path
 
-from config.crash_assumptions import (
-    FALLBACK_CRASH_PCT,
-    grouped_for_display,
-    is_known_asset,
-    lookup_crash_pct,
-)
+from cli.portfolio_input import collect_portfolio_dict
 from core.risk_calculator import Asset, build_report
 from core.visualizer import render_report
 
@@ -46,77 +41,6 @@ def setup_logging(log_dir: Path) -> None:
     root.addHandler(handler)
 
 
-def prompt_float(
-    prompt: str,
-    *,
-    allow_zero: bool = True,
-    max_value: float | None = None,
-) -> float:
-    while True:
-        raw = input(prompt).strip().replace(",", "").replace("_", "")
-        if not raw:
-            print("  ! please enter a number")
-            continue
-        try:
-            value = float(raw)
-        except ValueError:
-            print("  ! not a valid number")
-            continue
-        if value < 0:
-            print("  ! cannot be negative")
-            continue
-        if value == 0 and not allow_zero:
-            print("  ! cannot be zero")
-            continue
-        if max_value is not None and value > max_value + 1e-9:
-            print(f"  ! cannot exceed {max_value:.2f}")
-            continue
-        return value
-
-
-def show_known_assets() -> None:
-    print()
-    print("Known asset classes (case-insensitive lookup):")
-    for crash, names in grouped_for_display():
-        print(f"  {crash:+6.1f}%   {', '.join(names)}")
-    print(f"  (unknown asset names default to {FALLBACK_CRASH_PCT:+.1f}%)")
-    print()
-
-
-def collect_assets() -> list[Asset]:
-    show_known_assets()
-    print("Enter your assets one by one. Leave the name blank to finish.")
-
-    assets: list[Asset] = []
-    remaining = 100.0
-    while remaining > 1e-9:
-        name = input(f"Asset name [{remaining:6.2f}% remaining] : ").strip()
-        if not name:
-            break
-        if not is_known_asset(name):
-            print(
-                f"  (unknown asset '{name}' -- using fallback "
-                f"crash assumption {FALLBACK_CRASH_PCT:+.1f}%)"
-            )
-        crash = lookup_crash_pct(name)
-        alloc = prompt_float(
-            f"  Allocation % for {name} (max {remaining:.2f}) : ",
-            allow_zero=True,
-            max_value=remaining,
-        )
-        if alloc == 0:
-            print("  (zero allocation -- skipping this asset)")
-            continue
-        assets.append(Asset(name=name, allocation_pct=alloc, expected_crash_pct=crash))
-        remaining -= alloc
-        log.info("added asset %s alloc=%.2f%% crash=%+.1f%%", name, alloc, crash)
-
-    if remaining > 0.01:
-        print(f"\n  (unallocated {remaining:.2f}% -> treated as Cash @ 0% crash)")
-        assets.append(Asset(name="Cash", allocation_pct=remaining, expected_crash_pct=0.0))
-    return assets
-
-
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Timecell Task 1 - Portfolio Risk Engine"
@@ -134,19 +58,18 @@ def main() -> int:
     setup_logging(Path("logs"))
     log.info("task1 start moderate=%s", args.moderate)
 
-    print("=" * 64)
-    print(" TIMECELL  -  Portfolio Risk Engine ".center(64, "="))
-    print("=" * 64)
-
-    total = prompt_float("\nTotal portfolio value (INR) : ", allow_zero=False)
-    monthly = prompt_float("Monthly expenses (INR)      : ", allow_zero=False)
-    assets = collect_assets()
-
-    if not assets:
+    portfolio = collect_portfolio_dict(banner="TIMECELL  -  Portfolio Risk Engine")
+    if not portfolio["assets"]:
         print("\nNo assets entered. Nothing to evaluate.")
         return 1
 
-    report = build_report(total, monthly, assets, moderate=args.moderate)
+    assets = [Asset(**a) for a in portfolio["assets"]]
+    report = build_report(
+        total_value=portfolio["total_value_inr"],
+        monthly_expenses=portfolio["monthly_expenses_inr"],
+        assets=assets,
+        moderate=args.moderate,
+    )
     print(render_report(report))
 
     log.info("task1 complete assets=%d", len(assets))

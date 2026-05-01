@@ -1,19 +1,29 @@
-"""Future combined Timecell pipeline entry point.
-
-Task-specific CLIs are intentionally kept separate:
-    python task1_risk.py
-    python task2_market.py
-
-The combined pipeline will be wired here after Task 3 is implemented.
-"""
+"""Combined Timecell pipeline entry point."""
 
 from __future__ import annotations
 
+import argparse
+
 
 def main() -> int:
-    print("Timecell combined pipeline is not wired yet.")
+    parser = argparse.ArgumentParser(description="Timecell combined CLI")
+    parser.add_argument(
+        "--optimize",
+        action="store_true",
+        help="run Task 4 portfolio strategy improvement simulator",
+    )
+    args = parser.parse_args()
+
+    if args.optimize:
+        from task4_optimizer import main as task4_main
+
+        return task4_main([])
+
     print("Run Task 1: python task1_risk.py")
     print("Run Task 2: python task2_market.py")
+    print("Run Task 3: python task3_advisor.py")
+    print("Run Task 4: python task4_optimizer.py")
+    print("Or run Task 4 through this entry point: python main.py --optimize")
     return 0
 
 

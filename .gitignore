@@ -1,5 +1,11 @@
 __pycache__/
 .pytest_cache/
 logs/
+data/market_cache.json
+data/test_market_cache*.json
+.test_market_cache*.json
 *.pyc
 .env
+.env.*
+
+.early.coverage

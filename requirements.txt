@@ -3,5 +3,9 @@
 yfinance>=0.2.40
 requests>=2.31
 
+# Task 3 (AI Advisor) needs:
+openai>=1.40
+python-dotenv>=1.0
+
 # Test dependency:
 pytest>=7.0
