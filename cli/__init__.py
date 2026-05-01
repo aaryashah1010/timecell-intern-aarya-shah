@@ -1,1 +1,1 @@
-"""CLI helpers shared across the Timecell task entry points."""
+"""CLI helpers shared across task entry points."""

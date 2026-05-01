@@ -1,4 +1,4 @@
-"""Timecell - Task 3 entry point: AI-Powered Portfolio Explainer.
+"""Task 3 entry point: AI-Powered Portfolio Explainer.
 
 Collects a portfolio (interactively or from a JSON file), sends it to the
 LLM advisor, and prints both the raw API response and the parsed structured
@@ -32,7 +32,7 @@ from core.ai_explainer import (
     explain_portfolio,
 )
 
-log = logging.getLogger("timecell.task3")
+log = logging.getLogger("task3")
 
 WIDTH: int = 64
 
@@ -97,7 +97,7 @@ def _validate_portfolio_shape(data: object, source: str) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Timecell Task 3 - AI Portfolio Explainer")
+    p = argparse.ArgumentParser(description="Task 3 - AI Portfolio Explainer")
     p.add_argument(
         "--portfolio",
         type=Path,
@@ -185,7 +185,7 @@ def main() -> int:
     if args.portfolio is not None:
         portfolio = load_portfolio_from_file(args.portfolio)
     else:
-        portfolio = collect_portfolio_dict(banner="TIMECELL  -  AI Portfolio Advisor")
+        portfolio = collect_portfolio_dict(banner="AI Portfolio Advisor")
         if not portfolio["assets"]:
             print("\nNo assets entered. Nothing to explain.")
             return 1

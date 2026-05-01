@@ -1,4 +1,4 @@
-"""Timecell - Task 1 entry point: Portfolio Risk Engine (CLI).
+"""Task 1 entry point: Portfolio Risk Engine (CLI).
 
 Inputs collected from the user:
     - total portfolio value (INR)
@@ -24,7 +24,7 @@ from cli.portfolio_input import collect_portfolio_dict
 from core.risk_calculator import Asset, build_report
 from core.visualizer import render_report
 
-log = logging.getLogger("timecell.task1")
+log = logging.getLogger("task1")
 
 
 def setup_logging(log_dir: Path) -> None:
@@ -43,7 +43,7 @@ def setup_logging(log_dir: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Timecell Task 1 - Portfolio Risk Engine"
+        description="Task 1 - Portfolio Risk Engine"
     )
     p.add_argument(
         "--moderate",
@@ -58,7 +58,7 @@ def main() -> int:
     setup_logging(Path("logs"))
     log.info("task1 start moderate=%s", args.moderate)
 
-    portfolio = collect_portfolio_dict(banner="TIMECELL  -  Portfolio Risk Engine")
+    portfolio = collect_portfolio_dict(banner="Portfolio Risk Engine")
     if not portfolio["assets"]:
         print("\nNo assets entered. Nothing to evaluate.")
         return 1

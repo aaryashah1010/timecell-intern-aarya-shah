@@ -1,0 +1,57 @@
+[
+  {
+    "scenario_id": 1,
+    "name": "Crypto Regulatory Crackdown - US SEC + EU Simultaneous Action",
+    "narrative": "The US SEC classifies Bitcoin as an unregistered security following a landmark court ruling. EU regulators act within 48 hours, freezing withdrawals on major exchanges. Retail panic follows institutional exit over two weeks.",
+    "shock_map": {"BTC": -71, "NIFTY50": -12, "GOLD": 8, "CASH": 0},
+    "severity": "HIGH",
+    "severity_reason": "Crypto concentration means this scenario alone can breach runway threshold.",
+    "likelihood": "MEDIUM",
+    "likelihood_reason": "Regulatory action is probable but timing and severity remain uncertain.",
+    "takeaway": "Your crypto exposure alone can break this portfolio without any equity market moving against you."
+  },
+  {
+    "scenario_id": 2,
+    "name": "RBI Emergency Rate Hike - 150bps Rupee Stabilisation",
+    "narrative": "The rupee breaches 95 per dollar amid a widening current account deficit and FII outflows. RBI raises rates by 150bps in an emergency inter-meeting decision. Indian equities sell off sharply as domestic liquidity tightens across sectors.",
+    "shock_map": {"BTC": -20, "NIFTY50": -35, "GOLD": 12, "CASH": 0},
+    "severity": "MEDIUM",
+    "severity_reason": "Equity book absorbs most of the shock but gold partially offsets losses.",
+    "likelihood": "MEDIUM",
+    "likelihood_reason": "Rupee stress is plausible given persistent USD strength through 2025.",
+    "takeaway": "A domestic rate shock would hurt your equity book but your gold position provides meaningful cushion."
+  },
+  {
+    "scenario_id": 3,
+    "name": "Sovereign Capital Lockdown - Bank Bail-In and Market Closure",
+    "narrative": "A cascading banking panic forces emergency capital controls and a temporary freeze across exchanges, brokers, and large bank deposits. Quoted prices gap lower, but the bigger shock is impaired access to liquidity during the crisis window. Investors mark portfolios to distressed executable value rather than normal market value.",
+    "shock_map": {"BTC": -85, "NIFTY50": -95, "GOLD": -90, "CASH": -100},
+    "severity": "EXTREME",
+    "severity_reason": "Market closure and bank bail-in risk can impair even defensive liquidity.",
+    "likelihood": "LOW",
+    "likelihood_reason": "This requires simultaneous market, banking, and capital-control stress.",
+    "takeaway": "Even a large cash buffer can fail if liquidity access breaks, so defensive assets should be spread across instruments and custodians."
+  },
+  {
+    "scenario_id": 4,
+    "name": "Rupee Freefall - Currency Crisis Triggered by Oil Shock",
+    "narrative": "A Middle East escalation drives Brent crude above $140. India's import bill explodes and the current account deficit hits 5% of GDP. The rupee falls 22% against the dollar in three months, triggering imported inflation and equity outflows.",
+    "shock_map": {"BTC": -15, "NIFTY50": -28, "GOLD": 22, "CASH": 0},
+    "severity": "MEDIUM",
+    "severity_reason": "Gold's appreciation in USD terms partially offsets INR-denominated equity losses.",
+    "likelihood": "MEDIUM",
+    "likelihood_reason": "Oil shock risk is elevated given current geopolitical tensions in the Gulf.",
+    "takeaway": "Your gold holding acts as a natural rupee hedge; this is its moment to protect you."
+  },
+  {
+    "scenario_id": 5,
+    "name": "Indian Election Shock - Surprise Hung Parliament",
+    "narrative": "General election results produce a hung parliament with no clear majority coalition. Policy uncertainty halts capex decisions across Indian corporates. FII outflows accelerate as political risk premium reprices across Indian assets.",
+    "shock_map": {"BTC": -8, "NIFTY50": -22, "GOLD": 6, "CASH": 0},
+    "severity": "LOW",
+    "severity_reason": "India-specific shock with limited crypto impact; portfolio survives comfortably.",
+    "likelihood": "LOW",
+    "likelihood_reason": "A hung parliament outcome is possible but current polling suggests it is unlikely.",
+    "takeaway": "Political risk is real but your diversification across crypto and gold limits the damage here."
+  }
+]
