@@ -2,9 +2,27 @@
 
 from __future__ import annotations
 
-RUNWAY_THRESHOLD_MONTHS: float = 12.0
+import textwrap
+from dataclasses import dataclass
+
+from config.asset_categories import category as asset_category
+from config.thresholds import RUNWAY_THRESHOLD_MONTHS
+
 LINE_WIDTH: int = 68
 WRAP_WIDTH: int = 64
+
+
+@dataclass(frozen=True)
+class ScenarioRenderContext:
+    """Inputs to render one scenario block; replaces a 7-arg function signature."""
+
+    scenario: dict
+    metrics: dict
+    why: dict
+    index: int
+    total: int
+    portfolio: dict | None = None
+    baseline_runway: float | None = None
 
 
 def fmt_inr(amount: float) -> str:
@@ -35,7 +53,7 @@ def print_header(portfolio: dict) -> None:
     expenses = portfolio["monthly_expenses_inr"]
     print()
     print(_divider())
-    print("  TIMECELL - CRASH SCENARIO ANALYSIS")
+    print("  CRASH SCENARIO ANALYSIS")
     print(f"  Portfolio: {fmt_inr(total)}  |  Monthly Burn: {fmt_inr(expenses)}")
     print(_divider())
     print()
@@ -80,23 +98,19 @@ def print_critical_insight(baseline_runway: float) -> None:
     print()
 
 
-def print_scenario(
-    scenario: dict,
-    metrics: dict,
-    why: dict,
-    index: int,
-    total: int,
-    portfolio: dict | None = None,
-    baseline_runway: float | None = None,
-) -> None:
+def print_scenario(ctx: ScenarioRenderContext) -> None:
     """Print one complete crash-scenario report block."""
+    scenario = ctx.scenario
+    metrics = ctx.metrics
+    why = ctx.why
+
     verdict = "PASS" if metrics["ruin_test"] == "PASS" else "FAIL"
     severity = scenario.get("severity", "-")
     likelihood = scenario.get("likelihood", "-")
 
     print(_divider())
     print(
-        f"  SCENARIO {index} of {total}"
+        f"  SCENARIO {ctx.index} of {ctx.total}"
         f"  |  [{severity} SEVERITY]"
         f"  |  [{likelihood} LIKELIHOOD]"
     )
@@ -107,7 +121,7 @@ def print_scenario(
     for line in _wrap(scenario.get("narrative", ""), WRAP_WIDTH):
         print(f"  {line}")
 
-    print("\nASSUMPTIONS  (ChatGPT-generated; all math computed by engine):")
+    print("\nASSUMPTIONS  (AI-generated; all math computed by engine):")
     for name, pct in scenario.get("shock_map", {}).items():
         sign = "+" if float(pct) > 0 else ""
         print(f"  {name:<18}->  {sign}{pct}%")
@@ -134,8 +148,8 @@ def print_scenario(
     largest_shock = largest.get("shock_pct", 0.0)
     structural_failure = (
         metrics["ruin_test"] == "FAIL"
-        and baseline_runway is not None
-        and baseline_runway < RUNWAY_THRESHOLD_MONTHS
+        and ctx.baseline_runway is not None
+        and ctx.baseline_runway < RUNWAY_THRESHOLD_MONTHS
     )
 
     if largest_loss > 0:
@@ -143,9 +157,7 @@ def print_scenario(
         print(f"  - allocation exposure ({largest_alloc}% of portfolio)")
         print(f"  - scenario crash magnitude ({largest_shock:+.0f}%)")
         print(f"  - contributes {largest_pct:.0f}% of gross downside")
-        print(
-            f"  Asset-level loss from {largest_asset}: {fmt_inr(largest_loss)}"
-        )
+        print(f"  Asset-level loss from {largest_asset}: {fmt_inr(largest_loss)}")
     else:
         print("  No asset-level downside is modeled in this scenario.")
         print(
@@ -159,7 +171,7 @@ def print_scenario(
         )
     if structural_failure:
         print(
-            f"  Baseline runway is only {baseline_runway:.1f} months before "
+            f"  Baseline runway is only {ctx.baseline_runway:.1f} months before "
             "any market stress"
         )
         print("  Increase capital or reduce expenses before allocation changes")
@@ -174,8 +186,8 @@ def print_scenario(
             "the survival threshold"
         )
 
-    if portfolio is not None:
-        notes = _correlation_notes(portfolio, scenario.get("shock_map", {}))
+    if ctx.portfolio is not None:
+        notes = _correlation_notes(ctx.portfolio, scenario.get("shock_map", {}))
         if notes:
             print("\nCORRELATION EFFECT:")
             for note in notes:
@@ -226,9 +238,7 @@ def print_decision_insight(insight: dict) -> None:
     print("  DECISION INSIGHT")
     print(_divider())
     print()
-    print(
-        f"  Your portfolio is {insight['status_text']} under modeled scenarios."
-    )
+    print(f"  Your portfolio is {insight['status_text']} under modeled scenarios.")
     print()
     print("  Reason:")
     for reason in insight.get("reasons", []):
@@ -291,20 +301,9 @@ def _divider(char: str = "=") -> str:
 
 def _wrap(text: str, width: int = WRAP_WIDTH) -> list[str]:
     """Word-wrap text to the given width."""
-    words = text.split()
-    lines: list[str] = []
-    current = ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if len(candidate) <= width:
-            current = candidate
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    return lines
+    if not text:
+        return []
+    return textwrap.wrap(text, width=width) or [""]
 
 
 def _correlation_notes(portfolio: dict, shock_map: dict) -> list[str]:
@@ -318,64 +317,24 @@ def _correlation_notes(portfolio: dict, shock_map: dict) -> list[str]:
 
     for asset in portfolio.get("assets", []):
         name = asset.get("name", "")
-        category = _asset_category(name)
-        if category is None:
+        cat = asset_category(name)
+        if cat is None:
             continue
         shock = normalised_shocks.get(str(name).lower().strip(), 0.0)
         if shock == 0:
             continue
-        grouped.setdefault(category, []).append(name)
+        grouped.setdefault(cat, []).append(name)
 
     notes = []
-    for category, names in grouped.items():
+    for cat, names in grouped.items():
         if len(names) < 2:
             continue
-        names_display = " and ".join(names[:2])
-        if len(names) > 2:
+        if len(names) == 2:
+            names_display = " and ".join(names)
+        else:
             names_display = f"{', '.join(names[:-1])}, and {names[-1]}"
         notes.append(
-            f"{names_display} all belong to {category}. This creates "
+            f"{names_display} all belong to {cat}. This creates "
             "correlated downside risk when that category is stressed."
         )
     return notes
-
-
-def _asset_category(name: str) -> str | None:
-    """Classify common portfolio assets into correlation groups."""
-    lower = name.lower().strip()
-    if any(token in lower for token in ("btc", "bitcoin", "eth", "ethereum", "doge", "crypto")):
-        return "crypto"
-    if any(
-        token in lower
-        for token in (
-            "nifty",
-            "sensex",
-            "reliance",
-            "zomato",
-            "tata",
-            "hdfc",
-            "icici",
-            "infosys",
-            "tcs",
-            "indian equity",
-        )
-    ):
-        return "Indian equities"
-    if any(
-        token in lower
-        for token in (
-            "tesla",
-            "apple",
-            "amazon",
-            "microsoft",
-            "nvidia",
-            "meta",
-            "google",
-            "alphabet",
-            "netflix",
-        )
-    ):
-        return "global tech"
-    if any(token in lower for token in ("cash", "fd", "savings", "gold", "bond", "gilt")):
-        return "defensive assets"
-    return None

@@ -1,4 +1,4 @@
-"""Generate portfolio-specific macro stress scenarios with ChatGPT.
+"""Generate portfolio-specific macro stress scenarios with AI.
 
 The model returns narrative fields and shock percentages only. Portfolio values,
 runway, loss amounts, and verdicts are computed by deterministic Python modules.
@@ -8,17 +8,15 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
-import time
 
 from config.prompts import CRASH_STORY_SYSTEM_PROMPT
+from core.ai_explainer import call_openai
 
-log = logging.getLogger("timecell.crash_story.scenario_generator")
+log = logging.getLogger("crash_story.scenario_generator")
 
 OPENAI_MODEL: str = "gpt-4o"
 OPENAI_TEMPERATURE: float = 0.7
-OPENAI_MAX_TOKENS: int = 2500
 OPENAI_TIMEOUT_SEC: float = 30.0
 OPENAI_ATTEMPTS: int = 3
 OPENAI_BACKOFF_SEC: float = 2.0
@@ -104,80 +102,51 @@ No markdown. No explanation. No code fences.
 
 
 def generate_scenarios(portfolio: dict) -> list[dict]:
-    """Call ChatGPT and return a list of scenario dictionaries."""
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise EnvironmentError(
-            "OPENAI_API_KEY not found. Add it to your .env file.\n"
-            "  Example: OPENAI_API_KEY=sk-..."
+    """Call AI and return validated scenario dictionaries.
+
+    Uses the shared `core.ai_explainer.call_openai` wrapper, which handles
+    retries, backoff, and provider-error wrapping. ``json_response=False``
+    because the model returns a JSON array, not an object.
+    """
+    user_prompt = build_user_prompt(portfolio)
+
+    try:
+        raw = call_openai(
+            CRASH_STORY_SYSTEM_PROMPT,
+            user_prompt,
+            model=OPENAI_MODEL,
+            temperature=OPENAI_TEMPERATURE,
+            timeout_sec=OPENAI_TIMEOUT_SEC,
+            attempts=OPENAI_ATTEMPTS,
+            backoff_sec=OPENAI_BACKOFF_SEC,
+            json_response=False,
+        )
+    except RuntimeError as exc:
+        # call_openai wraps missing API key + provider failures as RuntimeError;
+        # surface as EnvironmentError so the CLI message stays consistent.
+        raise EnvironmentError(str(exc)) from exc
+
+    try:
+        scenarios = validate_scenarios(parse_scenarios(raw))
+    except json.JSONDecodeError as exc:
+        log.error("AI returned invalid JSON: %s", exc)
+        log.debug("raw response:\n%s", raw)
+        raise ValueError("AI returned invalid JSON. Check logs for raw output.") from exc
+
+    if not MIN_SCENARIO_COUNT <= len(scenarios) <= MAX_SCENARIO_COUNT:
+        raise ValueError(
+            f"Need {MIN_SCENARIO_COUNT}-{MAX_SCENARIO_COUNT} valid scenarios, "
+            f"got {len(scenarios)}."
         )
 
-    from openai import OpenAI
+    if len(scenarios) < SCENARIO_COUNT:
+        log.warning(
+            "Expected %d scenarios, got %d. Continuing with what was returned.",
+            SCENARIO_COUNT, len(scenarios),
+        )
 
-    client = OpenAI(api_key=api_key, timeout=OPENAI_TIMEOUT_SEC)
-    user_prompt = build_user_prompt(portfolio)
-    raw = ""
-
-    for attempt in range(1, OPENAI_ATTEMPTS + 1):
-        try:
-            response = client.chat.completions.create(
-                model=OPENAI_MODEL,
-                temperature=OPENAI_TEMPERATURE,
-                max_tokens=OPENAI_MAX_TOKENS,
-                messages=[
-                    {"role": "system", "content": CRASH_STORY_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
-            raw = response.choices[0].message.content or ""
-            scenarios = validate_scenarios(parse_scenarios(raw))
-            if not MIN_SCENARIO_COUNT <= len(scenarios) <= MAX_SCENARIO_COUNT:
-                raise ValueError(
-                    f"Need {MIN_SCENARIO_COUNT}-{MAX_SCENARIO_COUNT} valid "
-                    f"scenarios, got {len(scenarios)}."
-                )
-
-            if len(scenarios) < SCENARIO_COUNT:
-                print(
-                    f"[WARNING] Expected {SCENARIO_COUNT} scenarios, "
-                    f"got {len(scenarios)}. Continuing with what was returned."
-                )
-
-            log.info("generated %d crash scenarios", len(scenarios))
-            return scenarios
-        except json.JSONDecodeError as exc:
-            if attempt == OPENAI_ATTEMPTS:
-                print(f"[ERROR] Failed to parse ChatGPT response as JSON: {exc}")
-                print(f"[DEBUG] Raw response:\n{raw}")
-                raise ValueError(
-                    "ChatGPT returned invalid JSON. See raw output above."
-                ) from exc
-            delay = _retry_delay(attempt)
-            print(
-                f"[WARNING] Invalid JSON from ChatGPT: {exc}. "
-                f"Retrying in {delay:.0f} seconds..."
-            )
-            time.sleep(delay)
-        except ValueError as exc:
-            if attempt == OPENAI_ATTEMPTS:
-                raise
-            delay = _retry_delay(attempt)
-            print(
-                f"[WARNING] Invalid scenario response: {exc}. "
-                f"Retrying in {delay:.0f} seconds..."
-            )
-            time.sleep(delay)
-        except Exception as exc:
-            if attempt == OPENAI_ATTEMPTS:
-                raise
-            delay = _retry_delay(attempt)
-            print(
-                f"[WARNING] API call failed: {exc}. "
-                f"Retrying in {delay:.0f} seconds..."
-            )
-            time.sleep(delay)
-
-    raise RuntimeError("OpenAI API call failed without a captured exception.")
+    log.info("generated %d crash scenarios", len(scenarios))
+    return scenarios
 
 
 def parse_scenarios(raw: str) -> list[dict]:
@@ -195,31 +164,25 @@ def parse_scenarios(raw: str) -> list[dict]:
 def validate_scenarios(scenarios: list[dict]) -> list[dict]:
     """Return only scenarios with required fields and numeric shock values."""
     if not MIN_SCENARIO_COUNT <= len(scenarios) <= MAX_SCENARIO_COUNT:
-        print(
-            f"[WARNING] Scenario count is {len(scenarios)}; "
-            f"expected {MIN_SCENARIO_COUNT}-{MAX_SCENARIO_COUNT}."
+        log.warning(
+            "Scenario count is %d; expected %d-%d.",
+            len(scenarios), MIN_SCENARIO_COUNT, MAX_SCENARIO_COUNT,
         )
 
     valid: list[dict] = []
     for index, scenario in enumerate(scenarios, 1):
         reason = _scenario_validation_error(scenario)
         if reason:
-            print(f"[WARNING] Invalid scenario skipped: #{index} - {reason}")
+            log.warning("Invalid scenario skipped: #%d - %s", index, reason)
             continue
         valid.append(scenario)
 
     if len(valid) > MAX_SCENARIO_COUNT:
-        print(
-            f"[WARNING] {len(valid)} valid scenarios returned; "
-            f"using first {MAX_SCENARIO_COUNT}."
+        log.warning(
+            "%d valid scenarios returned; using first %d.",
+            len(valid), MAX_SCENARIO_COUNT,
         )
         valid = valid[:MAX_SCENARIO_COUNT]
-
-    if not MIN_SCENARIO_COUNT <= len(valid) <= MAX_SCENARIO_COUNT:
-        print(
-            f"[WARNING] Valid scenario count is {len(valid)}; "
-            f"expected {MIN_SCENARIO_COUNT}-{MAX_SCENARIO_COUNT}."
-        )
 
     return valid
 
@@ -248,11 +211,6 @@ def _scenario_validation_error(scenario: dict) -> str | None:
             return f"shock for {asset_name!r} is not numeric"
 
     return None
-
-
-def _retry_delay(attempt: int) -> float:
-    """Return exponential backoff delay for a one-indexed attempt number."""
-    return OPENAI_BACKOFF_SEC * (2 ** (attempt - 1))
 
 
 def _concentration_flag(name: str, allocation_pct: float) -> str:

@@ -1,4 +1,4 @@
-"""Timecell - Task 2 entry point: Live Market Data Fetch.
+"""Task 2 entry point: Live Market Data Fetch.
 
 Fetches current prices for the assets defined in config/market_assets.py
 and prints them as a clean terminal table. Per-asset failures do not
@@ -23,7 +23,7 @@ from config.market_assets import DEFAULT_ASSETS
 from config.market_catalog import MARKET_CATALOG
 from core.market_fetcher import AssetSpec, fetch_all, render_market_table
 
-log = logging.getLogger("timecell.task2")
+log = logging.getLogger("task2")
 DEFAULT_CACHE_PATH = Path("data") / "market_cache.json"
 
 
@@ -43,7 +43,7 @@ def setup_logging(log_dir: Path, *, verbose: bool) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Timecell Task 2 - Live Market Data Fetch")
+    p = argparse.ArgumentParser(description="Task 2 - Live Market Data Fetch")
     p.add_argument(
         "--interactive",
         "-i",

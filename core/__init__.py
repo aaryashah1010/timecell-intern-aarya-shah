@@ -1,1 +1,1 @@
-"""Core domain logic for the Timecell wealth-intelligence system."""
+"""Core domain logic for the wealth-intelligence system."""

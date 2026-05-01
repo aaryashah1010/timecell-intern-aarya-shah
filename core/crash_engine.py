@@ -1,18 +1,21 @@
 """Deterministic math engine for crash-scenario computation.
 
-Task 4 relies entirely on ChatGPT's scenario-specific ``shock_map`` values.
-This module does not import ``config.crash_assumptions``. If ChatGPT misses an
-asset, the engine assumes a 0% move and prints a warning.
+Task 4 relies entirely on AI scenario-specific ``shock_map`` values.
+This module does not import ``config.crash_assumptions``. If AI misses an
+asset, the engine assumes a 0% move and logs a warning.
 """
 
 from __future__ import annotations
 
 import copy
+import logging
 
+from config.thresholds import CONCENTRATION_THRESHOLD_PCT
 from core.risk_calculator import compute_risk_metrics
 
+log = logging.getLogger("crash_story.crash_engine")
+
 MISSING_ASSET_ASSUMPTION_PCT: float = 0.0
-CONCENTRATION_THRESHOLD_PCT: float = 35.0
 
 
 def apply_scenario_shocks(portfolio: dict, shock_map: dict) -> dict:
@@ -25,9 +28,9 @@ def apply_scenario_shocks(portfolio: dict, shock_map: dict) -> dict:
         if name_lower in normalised_shocks:
             asset["expected_crash_pct"] = float(normalised_shocks[name_lower])
         else:
-            print(
-                f"  [WARNING] '{asset['name']}' not found in shock_map. "
-                f"Assuming {MISSING_ASSET_ASSUMPTION_PCT}% (unaffected)."
+            log.warning(
+                "'%s' not found in shock_map. Assuming %s%% (unaffected).",
+                asset["name"], MISSING_ASSET_ASSUMPTION_PCT,
             )
             asset["expected_crash_pct"] = MISSING_ASSET_ASSUMPTION_PCT
 

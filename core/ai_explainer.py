@@ -29,7 +29,7 @@ from config.prompts import (
 )
 from core.risk_calculator import Asset, RiskReport, build_report
 
-log = logging.getLogger("timecell.advisor")
+log = logging.getLogger("advisor")
 
 VALID_VERDICTS: frozenset[str] = frozenset({"Aggressive", "Balanced", "Conservative"})
 DEFAULT_MODEL: str = "gpt-4o-mini"

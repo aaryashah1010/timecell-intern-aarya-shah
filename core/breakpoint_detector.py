@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import copy
 
+from config.asset_categories import is_cash
+from config.thresholds import RUNWAY_THRESHOLD_MONTHS
 from core.risk_calculator import compute_risk_metrics
 
-RUNWAY_THRESHOLD_MONTHS: float = 12.0
-CASH_ASSET_NAMES: frozenset[str] = frozenset({"cash", "fd", "savings", "fixed deposit"})
 BINARY_SEARCH_ITERATIONS: int = 20
 
 
@@ -83,6 +83,6 @@ def _compute_at_uniform_crash(portfolio: dict, crash_pct: float) -> dict:
     """Apply a uniform negative crash percentage to all non-cash assets."""
     modified = copy.deepcopy(portfolio)
     for asset in modified["assets"]:
-        if asset["name"].lower().strip() not in CASH_ASSET_NAMES:
+        if not is_cash(asset["name"]):
             asset["expected_crash_pct"] = -abs(crash_pct)
     return compute_risk_metrics(modified)

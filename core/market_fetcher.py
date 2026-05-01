@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-log = logging.getLogger("timecell.market")
+log = logging.getLogger("market")
 
 DEFAULT_RETRIES: int = 3
 DEFAULT_BACKOFF_SEC: float = 1.5

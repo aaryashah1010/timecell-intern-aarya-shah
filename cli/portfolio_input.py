@@ -26,7 +26,7 @@ from config.crash_assumptions import (
     lookup_crash_pct,
 )
 
-log = logging.getLogger("timecell.cli.portfolio_input")
+log = logging.getLogger("portfolio_input")
 
 BANNER_WIDTH: int = 64
 
@@ -135,7 +135,7 @@ def get_portfolio_from_user() -> dict:
     """
     Interactive CLI to build a custom portfolio from user input.
     Does not rely on crash_assumptions.py — shock percentages for
-    Task 4 will be provided entirely by ChatGPT at scenario generation time.
+    Task 4 will be provided entirely by AI at scenario generation time.
     Returns a portfolio dict in the same shape as the default portfolio.
     """
     print("\n  ── PORTFOLIO SETUP ──────────────────────────────────")
@@ -195,7 +195,7 @@ def get_portfolio_from_user() -> dict:
         total_alloc += pct
 
         # expected_crash_pct is a placeholder only.
-        # Task 4 will override this entirely with ChatGPT scenario values.
+        # Task 4 will override this entirely with AI scenario values.
         assets.append({
             "name": name,
             "allocation_pct": pct,
@@ -203,7 +203,7 @@ def get_portfolio_from_user() -> dict:
         })
 
         print(f"  ✓ {name} added ({pct}%)")
-        print("    Note: crash % will be set by ChatGPT per scenario\n")
+        print("    Note: crash % will be set by AI per scenario\n")
 
         if abs(total_alloc - 100.0) <= 1e-9:
             print("  Total allocation reached 100%.\n")
