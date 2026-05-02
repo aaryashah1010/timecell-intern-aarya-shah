@@ -11,6 +11,7 @@ that lives in config/crash_assumptions.py.
 Run:
     python task1_risk.py             # severe crash scenario
     python task1_risk.py --moderate  # 50% of severe
+    python task1_risk.py --compare   # severe and moderate reports
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import sys
 from pathlib import Path
 
 from cli.portfolio_input import collect_portfolio_dict
-from core.risk_calculator import Asset, build_report
+from core.risk_calculator import Asset, RiskReport, build_report
 from core.visualizer import render_report
 
 log = logging.getLogger("task1")
@@ -50,13 +51,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="apply moderate crash (50%% of severe)",
     )
-    return p.parse_args()
+    p.add_argument(
+        "--compare",
+        action="store_true",
+        help="show severe and moderate reports using the normal report format",
+    )
+    args = p.parse_args()
+    if args.compare and args.moderate:
+        p.error("--compare already includes moderate; do not combine it with --moderate")
+    return args
 
 
 def main() -> int:
     args = parse_args()
     setup_logging(Path("logs"))
-    log.info("task1 start moderate=%s", args.moderate)
+    log.info("task1 start moderate=%s compare=%s", args.moderate, args.compare)
 
     portfolio = collect_portfolio_dict(banner="Portfolio Risk Engine")
     if not portfolio["assets"]:
@@ -64,6 +73,16 @@ def main() -> int:
         return 1
 
     assets = [Asset(**a) for a in portfolio["assets"]]
+    if args.compare:
+        severe, moderate = build_comparison_report(
+            total_value=portfolio["total_value_inr"],
+            monthly_expenses=portfolio["monthly_expenses_inr"],
+            assets=assets,
+        )
+        print(render_comparison(severe, moderate))
+        log.info("task1 comparison complete assets=%d", len(assets))
+        return 0
+
     report = build_report(
         total_value=portfolio["total_value_inr"],
         monthly_expenses=portfolio["monthly_expenses_inr"],
@@ -74,6 +93,33 @@ def main() -> int:
 
     log.info("task1 complete assets=%d", len(assets))
     return 0
+
+
+def build_comparison_report(
+    *,
+    total_value: float,
+    monthly_expenses: float,
+    assets: list[Asset],
+) -> tuple[RiskReport, RiskReport]:
+    """Build severe and moderate reports from the same portfolio input."""
+    severe = build_report(
+        total_value=total_value,
+        monthly_expenses=monthly_expenses,
+        assets=assets,
+        moderate=False,
+    )
+    moderate = build_report(
+        total_value=total_value,
+        monthly_expenses=monthly_expenses,
+        assets=assets,
+        moderate=True,
+    )
+    return severe, moderate
+
+
+def render_comparison(severe: RiskReport, moderate: RiskReport) -> str:
+    """Render severe and moderate reports with the standard Task 1 formatter."""
+    return f"{render_report(severe)}\n\n{render_report(moderate)}"
 
 
 if __name__ == "__main__":
