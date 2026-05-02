@@ -70,7 +70,7 @@ def test_build_user_prompt_includes_computed_metrics():
 
 def test_system_prompt_contains_verdict_and_suggestion_rules():
     assert "Verdict guidance" in SYSTEM_PROMPT
-    assert "Aggressive: runway is below 12 months" in SYSTEM_PROMPT
+    assert "Aggressive: runway < 12 months" in SYSTEM_PROMPT
     assert "target percentage" in SYSTEM_PROMPT
     assert "Do not call a low-runway portfolio safe" in SYSTEM_PROMPT
 

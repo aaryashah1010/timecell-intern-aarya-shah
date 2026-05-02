@@ -158,9 +158,9 @@ def render_structured_output(explanation: Explanation) -> str:
 
 
 def render_critique(critique: Critique) -> str:
-    def block(label: str, items: tuple[str, ...]) -> str:
+    def block(label: str, items: tuple[str, ...], fallback: str) -> str:
         if not items:
-            return f"\n{label}: (none)"
+            return f"\n{label}\n  - {fallback}"
         return "\n" + label + "\n" + "\n".join(f"  - {x}" for x in items)
 
     return "\n".join([
@@ -168,9 +168,21 @@ def render_critique(critique: Critique) -> str:
         " CRITIQUE (second LLM call) ".center(WIDTH, "="),
         "=" * WIDTH,
         f"Overall grade: {critique.overall_grade}",
-        block("Accuracy issues", critique.accuracy_issues),
-        block("Specificity issues", critique.specificity_issues),
-        block("Missed points", critique.missed_points),
+        block(
+            "Accuracy issues",
+            critique.accuracy_issues,
+            "No major accuracy issue found against the source-of-truth metrics.",
+        ),
+        block(
+            "Specificity issues",
+            critique.specificity_issues,
+            "No major specificity gap found in the explanation.",
+        ),
+        block(
+            "Missed points",
+            critique.missed_points,
+            "No major missed point identified after reviewing the required metrics.",
+        ),
     ])
 
 

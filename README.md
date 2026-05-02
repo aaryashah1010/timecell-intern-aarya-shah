@@ -72,12 +72,12 @@ scenarios and computes their impact on the portfolio. It turns a portfolio into
 a survival question:
 
 ```text
-If this story happens in the market, does the investor still survive?
+If this story happens in the market, does the investor still surv ive?
 ```
 
 The important boundary is strict:
 
-- ChatGPT generates scenario stories and asset shock percentages.
+- The AI model generates scenario stories and asset shock percentages.
 - Python computes portfolio value, losses, runway, verdicts, ranking, and
   decision insight.
 
@@ -113,7 +113,7 @@ pytest -q
 At the time of submission, the suite passes locally:
 
 ```text
-91 passed
+99 passed
 ```
 
 For AI tasks, create a `.env` file:
@@ -135,6 +135,7 @@ works without an API key and does not call OpenAI.
 ```bash
 python task1_risk.py
 python task1_risk.py --moderate
+python task1_risk.py --compare
 
 python task2_market.py
 python task2_market.py --interactive
@@ -155,6 +156,15 @@ python task4_crash_story.py --dry-run
 python task4_crash_story.py --verbose
 
 python main.py
+python main.py --task1
+python main.py --task1 --moderate
+python main.py --task1 --compare
+python main.py --task2
+python main.py --task2 --interactive
+python main.py --task3 --portfolio data/sample_portfolio.json --tone experienced
+python main.py --task3 --portfolio data/sample_portfolio.json --tone experienced --critique
+python main.py --task4 --dry-run
+python main.py --task4 --input
 python main.py --crash-story
 ```
 
@@ -166,15 +176,62 @@ python main.py --crash-story
 python main.py
 ```
 
-Prints the available task commands.
+Opens an interactive numbered menu:
+
+```text
+1. Task 1 - Portfolio Risk Calculator
+2. Task 2 - Live Market Data Fetch
+3. Task 3 - AI Portfolio Explainer
+4. Task 4 - Crash Scenario Story Generator
+0. Exit
+```
+
+Choose `1`, `2`, `3`, or `4` and the selected task runs immediately.
+For direct execution without the menu, use the flags below.
+
+```bash
+python main.py --task1
+python main.py --task1 --moderate
+python main.py --task1 --compare
+```
+
+Runs Task 1 through the combined entry point. Task-specific flags are passed
+through to `task1_risk.py`.
+
+```bash
+python main.py --task2
+python main.py --task2 --interactive
+python main.py --task2 --no-cache
+python main.py --task2 --verbose --retries 5
+```
+
+Runs Task 2 through the combined entry point. Market-fetch flags are passed
+through to `task2_market.py`.
+
+```bash
+python main.py --task3
+python main.py --task3 --portfolio data/sample_portfolio.json --tone experienced
+python main.py --task3 --portfolio data/sample_portfolio.json --tone experienced --critique
+```
+
+Runs Task 3 through the combined entry point. Advisor flags are passed through
+to `task3_advisor.py`.
+
+```bash
+python main.py --task4
+python main.py --task4 --dry-run
+python main.py --task4 --input
+```
+
+Runs Task 4 through the combined entry point. Crash-story flags are passed
+through to `task4_crash_story.py`.
 
 ```bash
 python main.py --crash-story
 ```
 
-Runs Task 4 through the combined entry point. This is useful when a reviewer
-wants a single top-level command but the task implementations still remain
-separate and testable.
+Backward-compatible alias for `python main.py --task4`. You can also pass Task
+4 flags, for example `python main.py --crash-story --dry-run`.
 
 ## Assessment Mapping
 
@@ -184,6 +241,45 @@ separate and testable.
   `task3_advisor.py`.
 - Task 4: open-problem crash scenario generator is implemented in
   `task4_crash_story.py`.
+
+## PDF Requirement Checklist
+
+This section maps the implementation directly to the uploaded technical test.
+
+Task 1 asks for deterministic portfolio risk metrics:
+
+- `compute_risk_metrics(portfolio)` returns the required five fields.
+- The severe crash path uses the full `expected_crash_pct` assumptions.
+- The moderate bonus is implemented with `python task1_risk.py --moderate`.
+- The side-by-side bonus is implemented with `python task1_risk.py --compare`.
+- The CLI includes an ASCII allocation bar chart without plotting libraries.
+- Tests cover zero allocation, 100% cash, boundary runway, concentration, and
+  invalid inputs.
+
+Task 2 asks for live market data:
+
+- The default fetch includes Indian stock/index assets and crypto assets.
+- `yfinance` is used for stocks/indices and CoinGecko is used for crypto.
+- Failed assets are isolated, logged, and do not crash the whole command.
+- Retry, timeout, rate-limit, cache fallback, and `--no-cache` behavior are
+  implemented.
+
+Task 3 asks for AI-powered explanation and prompt documentation:
+
+- The prompt lives in code in `config/prompts.py`.
+- The script accepts interactive portfolios or JSON files.
+- Raw model output and parsed structured output are printed separately.
+- Tone is configurable with `--tone beginner|experienced|expert`.
+- The critique bonus is implemented with `--critique`.
+- The prompt iteration, what changed, and why are documented below.
+
+Task 4 asks for an open-ended product idea:
+
+- I built a crash scenario story generator for downside-survival decisions.
+- It works in live AI mode and deterministic `--dry-run` mode.
+- It shows judgment by separating AI-generated scenarios from Python-computed
+  portfolio math.
+- It is designed as a terminal-first feature, matching the assessment context.
 
 ## Project Structure
 
@@ -218,7 +314,9 @@ Timecell/
 |-- tests/
 |   |-- test_ai_explainer.py
 |   |-- test_market_fetcher.py
+|   |-- test_main_cli.py
 |   |-- test_risk_calculator.py
+|   |-- test_task1_compare.py
 |   |-- test_task2_market_cli.py
 |   |-- test_task3_advisor_cli.py
 |   `-- test_task4_crash_story.py
@@ -269,6 +367,7 @@ config/crash_assumptions.py
 cli/portfolio_input.py
 task1_risk.py
 tests/test_risk_calculator.py
+tests/test_task1_compare.py
 ```
 
 ### Features
@@ -279,6 +378,7 @@ tests/test_risk_calculator.py
 - Unallocated remainder becomes Cash.
 - Allocation above 100% is prevented.
 - Moderate crash bonus via `--moderate`.
+- Severe plus moderate back-to-back reports via `--compare`.
 - CLI visualizer for allocation and risk metrics.
 - Edge cases covered:
   - zero allocation
@@ -304,6 +404,15 @@ python task1_risk.py --moderate
 
 Uses 50% of the severe crash assumptions. This simulates a less severe market
 stress while keeping the same deterministic math engine.
+
+```bash
+python task1_risk.py --compare
+```
+
+Collects the portfolio once and prints severe and moderate outcomes side by
+side using the same report format as the normal and `--moderate` commands.
+This is the best Task 1 demo command because it shows both stress levels
+without making the user enter the same portfolio twice.
 
 ### Core Formula
 
@@ -512,6 +621,60 @@ Important prompt rules:
 - Verdict must be exactly `Aggressive`, `Balanced`, or `Conservative`.
 - Recommendation must name an asset and target action.
 
+### Prompt Iteration
+
+The assessment specifically asks what prompt approach was tried, what worked,
+what changed, and why.
+
+Initial Task 3 prompt approach:
+
+- Ask the model to act as a friendly financial advisor.
+- Provide the portfolio and computed Task 1 metrics.
+- Ask for four fields: summary, doing well, consider changing, and verdict.
+- Ask for JSON so the CLI could parse the response.
+
+What worked:
+
+- The model produced readable explanations in plain English.
+- The four-field JSON shape made the output easy to parse.
+- Passing Python-computed metrics reduced hallucinated portfolio math.
+
+What needed improvement:
+
+- The model sometimes omitted one of the required metrics.
+- Recommendations could be too generic, such as "diversify more."
+- Verdicts needed stricter rules when runway, loss percentage, and
+  concentration pointed in different directions.
+- The critique call sometimes returned empty lists, which looked weak in the
+  terminal output.
+
+Changes made:
+
+- Added strict metric coverage rules for post-crash value, loss percentage,
+  runway, ruin test, largest-risk asset, and concentration warning.
+- Added exact verdict rules:
+  - `Aggressive` if runway is below 12 months, loss is above 50%, or
+    concentration warning is true.
+  - `Balanced` only when runway, loss, and concentration all fit the balanced
+    range.
+  - `Conservative` only when runway is strong, loss is low, and concentration
+    warning is false.
+- Added tone-specific instructions for `beginner`, `experienced`, and `expert`.
+- Strengthened recommendation rules so the answer names an asset and target
+  action.
+- Added a second critique prompt with source-of-truth metrics, null-metric
+  handling, grade calibration, and concrete feedback categories.
+- Updated critique rendering so empty sections print useful sentences instead
+  of `(none)`.
+
+Why these changes helped:
+
+- The output became more consistent and easier to evaluate.
+- The verdict became auditable against deterministic metrics.
+- The recommendation became more actionable for an investor.
+- The code structure matches the PDF requirement: prompt logic, API call, and
+  output parsing are separated.
+
 ## Task 4 - Crash Scenario Story Generator
 
 TL;DR:
@@ -565,7 +728,7 @@ python task4_crash_story.py --input
 ```
 
 Allows manual portfolio entry. The user can type any asset name; Task 4 asks
-ChatGPT to generate scenario-specific shocks for those exact assets.
+the AI model to generate scenario-specific shocks for those exact assets.
 
 ```bash
 python task4_crash_story.py --dry-run
@@ -587,7 +750,7 @@ Prints Task 4 logs to the terminal in addition to writing them to
 Task 4 follows a strict AI boundary:
 
 ```text
-ChatGPT generates:
+AI model generates:
 - scenario name
 - narrative
 - shock_map
@@ -613,7 +776,7 @@ This prevents the language model from guessing financial math.
 1. Load default or custom portfolio.
 2. Compute baseline runway.
 3. Run binary search for the portfolio break point.
-4. Generate macro scenarios with OpenAI/ChatGPT.
+4. Generate macro scenarios with OpenAI.
 5. Validate scenario JSON.
 6. Apply each scenario's `shock_map` to the portfolio.
 7. Reuse `compute_risk_metrics()` from Task 1.
@@ -649,7 +812,7 @@ It also handles:
 
 ### Crash Engine
 
-`core/crash_engine.py` applies OpenAI/ChatGPT's `shock_map` values.
+`core/crash_engine.py` applies the AI-generated `shock_map` values.
 
 Important behavior:
 
@@ -708,7 +871,7 @@ This creates correlated downside risk when that category is stressed.
 
 ### Task 4 Prompt Engineering
 
-The Task 4 OpenAI/ChatGPT system prompt is `CRASH_STORY_SYSTEM_PROMPT` in
+The Task 4 OpenAI system prompt is `CRASH_STORY_SYSTEM_PROMPT` in
 `config/prompts.py`.
 
 It was changed and strengthened to produce better output.
@@ -787,6 +950,59 @@ Key prompt improvements:
     The prompt discourages generic advice like "consider diversification" and
     asks for asset-specific, actionable takeaways.
 
+### Task 4 Prompt Iteration
+
+Initial Task 4 prompt approach:
+
+- Ask the AI model to generate five macro crash scenarios.
+- Ask for scenario names, narratives, severity, likelihood, and a `shock_map`.
+- Keep all portfolio calculations outside the model.
+
+What worked:
+
+- The model was good at producing realistic macro narratives.
+- Scenario-specific shocks were more useful than one static crash table.
+- The narrative made the risk report easier to explain in a demo.
+
+What needed improvement:
+
+- Some scenarios were too generic.
+- Some responses did not stress the actual assets in the portfolio enough.
+- Severity labels were sometimes weaker than the modeled shock.
+- All scenarios could pass, which made the stress test feel too soft.
+- The model needed repeated instruction not to compute portfolio values.
+
+Changes made:
+
+- Added a strict AI/math boundary: the model may generate only scenario
+  identity, narrative, shock map, severity, likelihood, and takeaway.
+- Forbid the model from generating portfolio value, INR loss, runway, or
+  PASS/FAIL verdict.
+- Required every portfolio asset to appear in every `shock_map` using the exact
+  asset name string.
+- Added portfolio-aware rules:
+  - crypto holdings trigger regulation, exchange, custody, and liquidity risks
+  - Indian equities trigger RBI, FII flow, election, rupee, and fiscal risks
+  - global tech triggers rates and growth-stock valuation risks
+  - gold triggers safe-haven and inflation/currency behavior
+  - cash triggers preservation, inflation erosion, or bank-failure risk
+- Required each scenario to affect at least two portfolio assets.
+- Required diversity across crypto, India macro, global contagion, currency or
+  inflation, and tail-risk scenarios.
+- Added severity bands: `LOW`, `MEDIUM`, `HIGH`, and `EXTREME`.
+- Required at least one strong downside case and one `HIGH` or `EXTREME`
+  scenario.
+- Added validation before computation so malformed scenarios are skipped.
+- Added dry-run JSON scenarios so reviewers can test Task 4 without API access.
+
+Why these changes helped:
+
+- Task 4 became more product-like instead of just another calculation script.
+- The output became portfolio-aware instead of generic.
+- The deterministic engine remained responsible for all financial math.
+- The open-problem submission demonstrates judgment, originality, and
+  execution, which are the PDF scoring dimensions for Task 4.
+
 ### Task 4 Dry Run
 
 Test this feature without network access or API keys:
@@ -847,6 +1063,7 @@ pytest -q
 
 Current coverage areas:
 
+- Main dispatcher routing and task-argument pass-through
 - Task 1 risk math and edge cases
 - Task 2 market fetcher with mocked API calls
 - Task 2 CLI behavior
@@ -882,7 +1099,7 @@ Use `--verbose` where supported to echo logs to the terminal.
 
 ## AI Usage
 
-AI tools including Claude, Codex, and ChatGPT were used as engineering
+AI tools including Claude, Codex, and OpenAI models were used as engineering
 assistants for:
 
 - architecture design discussion
@@ -890,6 +1107,12 @@ assistants for:
 - code review and refactoring suggestions
 - test case generation
 - documentation drafting
+
+For the live application features, I used the OpenAI API because it was
+available to me, supports structured JSON-style outputs reliably, and fits the
+assessment rule that any LLM provider may be used. The provider can be swapped
+later because prompt construction, API calls, and parsing are separated in
+`core/ai_explainer.py` and `core/scenario_generator.py`.
 
 However:
 
@@ -905,24 +1128,6 @@ AI is only used for:
 
 This ensures the system remains deterministic and auditable.
 
-## Submission Notes
-
-The technical assessment asks for:
-
-- public GitHub repository
-- README explaining approach
-- 3-5 minute Loom or screen recording
-- one paragraph about the hardest part and approach
-
-Suggested Loom structure:
-
-1. Show Task 1 risk calculator and tests.
-2. Show Task 2 market fetch with fallback and error handling.
-3. Show Task 3 raw LLM response and parsed structured output.
-4. Show Task 4 dry-run first, then live scenario generation if API is
-   available.
-5. Explain the AI/math boundary: LLM writes narratives and shocks; Python
-   computes results.
 
 ## Limitations
 

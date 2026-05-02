@@ -3,7 +3,8 @@
 import sys
 
 from cli.portfolio_input import collect_portfolio_dict, prompt_float
-from task3_advisor import parse_args
+from core.ai_explainer import Critique
+from task3_advisor import parse_args, render_critique
 
 
 def test_parse_args_defaults_to_interactive(monkeypatch):
@@ -66,3 +67,21 @@ def test_collect_portfolio_dict_unknown_asset_uses_fallback(monkeypatch):
     assert portfolio["assets"] == [
         {"name": "Pepsi", "allocation_pct": 100.0, "expected_crash_pct": -30.0},
     ]
+
+
+def test_render_critique_uses_sentence_when_issue_list_is_empty():
+    critique = Critique(
+        accuracy_issues=(),
+        specificity_issues=(),
+        missed_points=(),
+        overall_grade="A",
+        raw_response="{}",
+        model="test-model",
+    )
+
+    output = render_critique(critique)
+
+    assert "(none)" not in output
+    assert "No major accuracy issue" in output
+    assert "No major specificity gap" in output
+    assert "No major missed point" in output

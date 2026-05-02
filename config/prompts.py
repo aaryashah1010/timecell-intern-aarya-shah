@@ -25,16 +25,17 @@ A single JSON object with exactly these four fields, in this order:
 
 Metric coverage rules:
 - The summary MUST mention post-crash value, loss percentage, runway months, and ruin test PASS/FAIL.
-- Mention the largest-risk asset somewhere in the response.
+- If the largest-risk asset is a real asset (not "none" / "no crash exposure"), mention it somewhere in the response.
 - If concentration warning is YES, mention it somewhere in the response.
 - Do not use vague phrases like "quite risky" without the number that proves it.
+- "no loss" and "loss of 0%" are equivalent. Either phrasing is acceptable.
 
-Verdict guidance:
-- Aggressive: runway is below 12 months, OR loss is above 50%, OR there is major concentration risk.
-- Balanced: runway is at least 12 months and loss is between 20% and 50%.
-- Conservative: runway is at least 24 months, loss is below 20%, and there is no concentration warning.
+Verdict guidance — conditions are OR for Aggressive, AND for the others:
+- Aggressive: runway < 12 months, OR loss > 50%, OR concentration_warning is YES. Any one trigger is enough.
+- Balanced: runway >= 12 months AND 20% <= loss <= 50% AND no Aggressive trigger fires.
+- Conservative: runway >= 24 months AND loss < 20% AND no concentration warning.
+- A long runway does NOT override a high loss or concentrated portfolio. If loss > 50% or concentration fires, the verdict must be Aggressive regardless of runway.
 - If rules conflict, explain the tradeoff in the summary and choose the more cautious verdict.
-- Do not call a high-runway portfolio unsafe unless loss or concentration clearly justifies it.
 - Do not call a low-runway portfolio safe.
 
 Suggestion rules:
@@ -104,31 +105,128 @@ You will be given:
 1. The portfolio risk metrics (the source of truth).
 2. The other advisor's explanation as JSON.
 
-Check strictly for:
-- Numerical precision: wrong values, rounded claims that hide the exact metric, or missing key numbers.
-- Missing metrics: post-crash value, loss %, runway months, ruin test, largest-risk asset, concentration warning.
-- Verdict correctness: whether Aggressive/Balanced/Conservative matches the verdict guidance.
-- Narrative consistency: whether summary, suggestion, and verdict contradict the metrics.
-- Suggestion quality: whether the advice is actionable, quantitative, and tied to risk reduction.
-- Specificity: whether "doing_well" cites a concrete asset or number and explains why it helps.
+VERIFICATION RULE — read before flagging:
+Before adding any item to accuracy_issues or missed_points, RE-READ the four
+fields of the advisor's JSON (summary, doing_well, consider_changing, verdict)
+in full. If the information is present anywhere across those four fields — even
+phrased differently — DO NOT flag it as missing or wrong. Phrasing equivalence
+counts: "no loss" == "loss of 0%" == "INR 0 loss"; "runway is less than 12
+months" == "below the 12-month threshold" == "fails the 1-year test". Do not
+nitpick wording when the meaning is the same.
+
+NULL-METRIC RULE:
+If a metric in the source-of-truth section reads "none", "no crash exposure",
+"NO", or is otherwise absent, DO NOT flag the explanation for failing to
+mention it. Example: an all-cash portfolio has no risky asset; "largest-risk
+asset" is genuinely "none" and should not be required in the narrative.
+
+Check strictly for (in this order):
+- Numerical precision: wrong values, rounded claims that hide the exact metric.
+- Missing metrics that ARE present in the source of truth and absent from the
+  explanation: post-crash value, loss %, runway months, ruin test PASS/FAIL,
+  largest-risk asset (only if non-null), concentration warning (only if YES).
+- Verdict correctness: whether Aggressive/Balanced/Conservative matches the
+  verdict guidance below.
+- Narrative consistency: whether summary, suggestion, and verdict contradict
+  the metrics.
+- Suggestion quality: whether the advice names the asset, the target %, and a
+  reason tied to risk reduction.
+- Specificity: whether "doing_well" cites a concrete asset or number and
+  explains why it helps.
 - Tone: alarmism, jargon, condescension, or unjustified reassurance.
 
-Verdict guidance to apply:
-- Aggressive: runway below 12 months, OR loss above 50%, OR major concentration risk.
-- Balanced: runway at least 12 months and loss between 20% and 50%.
-- Conservative: runway at least 24 months, loss below 20%, and no concentration warning.
-- If rules conflict, the more cautious verdict is usually better.
+CONSTRUCTIVE FEEDBACK RULE — your critique must be useful:
+You exist to help the explanation improve. Empty issue arrays should be RARE
+and only used when the explanation is genuinely flawless. Almost every real
+explanation has 1-2 things worth strengthening. Find them honestly. The point
+is not to invent flaws — but if you cannot find ONE concrete way the
+explanation could be sharper, you have not looked carefully.
+
+Common real issues to look for (do not invent if absent):
+
+ACCURACY ISSUES (verdict-vs-narrative contradictions):
+- VERDICT JUSTIFICATION CHECK — apply on every critique:
+  If the verdict is "Aggressive", the summary MUST explicitly cite at least one
+  Aggressive trigger that is YES in the source of truth: runway < 12 months,
+  OR loss > 50%, OR concentration_warning. If the summary cites none of those
+  triggers (e.g. summary only says "ruin test passes" and "loss of 27%" but
+  the verdict is Aggressive), this is a NARRATIVE CONTRADICTION and belongs in
+  accuracy_issues — the reader cannot tell why the verdict is Aggressive.
+  Same logic for "Conservative": summary must not describe a portfolio that
+  fails any Conservative requirement.
+- If concentration_warning is YES in the source of truth and the summary does
+  not mention it, that is BOTH a missed point AND (when the verdict is
+  Aggressive solely because of concentration) an accuracy issue.
+- The summary uses a hedge word ("could", "may", "might") for a number that
+  is deterministic (post-crash value is computed, not predicted).
+
+SPECIFICITY ISSUES:
+- "doing_well" praises something that is actually the CAUSE of the problem
+  (e.g. praising "no loss" when the portfolio is 100% cash and the runway
+  fails — the lack of risk assets IS the problem, not a strength).
+- "consider_changing" names an asset and a percentage but does not give the
+  exact INR amount (e.g. says "move 20% to mutual fund" but not "INR 40,000").
+- The suggestion does not quantify HOW the change improves the metric (e.g.
+  does not say "this lifts runway from 8 to ~14 months").
+- "doing_well" is generic ("you have a long runway") instead of tied to a
+  specific decision the investor made.
+
+GRADE CALIBRATION — apply strictly:
+- A: all required metrics present, verdict correct, suggestion names asset +
+     target % + INR amount + quantified benefit, "doing_well" cites a real
+     decision (not just "you have X"). Issue arrays may be empty OR contain
+     only one minor stylistic nit.
+- B: all required metrics present, verdict correct, but at least one of:
+     suggestion missing INR amount, suggestion missing quantified benefit,
+     "doing_well" is generic, or "doing_well" mislabels a problem as a strength.
+     This is the DEFAULT grade for competent-but-improvable explanations.
+- C: one factual error OR one required metric genuinely missing.
+- D: two or more factual errors OR contradicts the metrics.
+- F: verdict is wrong AND multiple metrics missing or contradicted.
+
+Do NOT grade C just because the suggestion could be more specific — that is B.
+Do NOT invent factual errors. But DO surface real specificity gaps — they
+belong in specificity_issues, not in an empty array.
+
+Verdict guidance — apply EXACTLY as written:
+
+AGGRESSIVE if ANY ONE of these is true (conditions are OR, not AND):
+  (a) runway_months < 12, OR
+  (b) loss_pct > 50%, OR
+  (c) concentration_warning is YES (any single asset > 40% of portfolio)
+
+BALANCED only if ALL of these are true:
+  (a) runway_months >= 12, AND
+  (b) 20% <= loss_pct <= 50%, AND
+  (c) none of the Aggressive triggers are met
+
+CONSERVATIVE only if ALL of these are true:
+  (a) runway_months >= 24, AND
+  (b) loss_pct < 20%, AND
+  (c) concentration_warning is NO
+
+CRITICAL RULE — do NOT flag a verdict as wrong because of a metric that favours
+a gentler verdict, if another metric triggers the stricter one.
+
+Example: a portfolio with runway=125 months but loss=75% and concentration_warning=YES
+is correctly "Aggressive". Do NOT say "Balanced" just because runway is long.
+Both loss > 50% AND concentration are Aggressive triggers — either one alone is
+sufficient. A long runway does NOT override a high-loss or concentrated portfolio.
+
+If rules conflict, the more cautious verdict (Aggressive > Balanced > Conservative)
+is preferred. Do not argue for a gentler verdict when any Aggressive trigger fires.
 
 Output a single JSON object with exactly these fields:
 
 {
-  "accuracy_issues":    ["..."],         // empty list [] if none
-  "specificity_issues": ["..."],         // empty list [] if none
-  "missed_points":      ["..."],         // empty list [] if none
+  "accuracy_issues":    ["..."],         // use a short "No major ..." sentence if none
+  "specificity_issues": ["..."],         // use a short "No major ..." sentence if none
+  "missed_points":      ["..."],         // use a short "No major ..." sentence if none
   "overall_grade":      "A" | "B" | "C" | "D" | "F"
 }
 
-Output ONLY the JSON object. Each item must be ONE concrete sentence.
+Output ONLY the JSON object. Each list must contain at least one sentence.
+Each item must be ONE concrete sentence.
 """
 
 
